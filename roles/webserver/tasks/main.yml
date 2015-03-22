@@ -1,0 +1,21 @@
+---
+- name: Update apt-get
+  apt: update_cache=yes cache_valid_time=86400
+
+- name: Install git
+  apt: name=git state=present
+
+- name: Add webapp user
+  user: name=webapp shell=/bin/bash state=present
+
+- name: Create app git repository directory
+  sudo_user: webapp
+  file: path=~/webapp.git state=directory
+
+- name: Initialize git repository
+  sudo_user: webapp
+  shell: chdir=~/webapp.git git init --bare
+
+- name: Set up authorized_keys for webapp user
+  authorized_key: user=webapp key="{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
+

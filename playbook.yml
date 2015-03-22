@@ -1,0 +1,5 @@
+---
+- hosts: webapp
+  sudo: true
+  roles:
+    - webserver
