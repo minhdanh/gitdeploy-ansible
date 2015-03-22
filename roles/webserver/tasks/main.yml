@@ -2,8 +2,22 @@
 - name: Update apt-get
   apt: update_cache=yes cache_valid_time=86400
 
+- name: Install packages
+  apt: name={{ item }} state=latest
+  with_items:
+    - ruby
+    - bundler
+    - git
+    - libssl-dev
+    - nodejs
+    - libsqlite3-dev
+    - nginx
+
+- name: Install bundler
+  apt: name=bundler state=latest
+
 - name: Install git
-  apt: name=git state=present
+  apt: name=git state=latest
 
 - name: Add webapp user
   user: name=webapp shell=/bin/bash state=present
@@ -12,9 +26,31 @@
   sudo_user: webapp
   file: path=~/webapp.git state=directory
 
-- name: Initialize git repository
+- name: Create app directory
+  sudo_user: webapp
+  file: path=~/webapp state=directory
+
+- name: Initialize git repo for webapp dir
+  sudo_user: webapp
+  shell: chdir=~/webapp git init
+
+- name: Add some folders neccessary for puma
+  sudo_user: webapp
+  shell: chdir=~/webapp/tmp/ mkdir -p sockets && mkdir -p pids
+
+- name: Initialize git bare repository
   sudo_user: webapp
   shell: chdir=~/webapp.git git init --bare
+
+- name: Copy post-receive hook to git hooks dir
+  sudo_user: webapp
+  copy: src=templates/post-receive dest=~/webapp.git/hooks/post-receive mode=0755
+
+- name: Copy nginx configuration
+  copy: src=templates/nginx-default.conf dest=/etc/nginx/sites-enabled/default mode=0755
+
+- name: Restart nginx
+  service: name=nginx state=restarted enabled=yes
 
 - name: Set up authorized_keys for webapp user
   authorized_key: user=webapp key="{{ lookup('file', '~/.ssh/id_rsa.pub') }}"

@@ -1,0 +1,31 @@
+#!/bin/bash
+unset GIT_DIR
+RAILS_ENV="development"
+PID_FILE="/home/webapp/webapp/tmp/pids/puma.pid"
+SOCK_FILE="/home/webapp/webapp/tmp/sockets/puma.sock"
+DAEMON_OPTS="-C /home/webapp/webapp/config/puma.rb"
+APP_REPO="/home/webapp/webapp.git"
+cd /home/webapp/webapp/
+echo "--------> Getting latest code..."
+while read oldrev newrev ref
+do
+    branch=`echo $ref | cut -d/ -f3`
+    if [ "$branch" == "master" ] ; then
+      git pull $APP_REPO master
+      echo "--------> Running bundle install..."
+      bundle install --without development test --deployment
+      echo
+      echo "-------->  Precompiling assets..."
+      bundle exec rake assets:precompile RAILS_ENV=$RAILS_ENV
+      echo
+      echo "-------->  Running migrations..."
+      bundle exec rake db:migrate RAILS_ENV=$RAILS_ENV
+      echo
+      echo "--------> Restarting web server..."
+      if [ -f $PID_FILE ]; then
+        kill -KILL $(cat $PID_FILE)
+      fi
+      rm -f $SOCK_FILE
+      RAILS_ENV=$RAILS_ENV bundle exec puma $DAEMON_OPTS
+    fi
+done
